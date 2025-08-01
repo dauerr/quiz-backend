@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  quiz-app backend
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures:
+      - arm64
+    Timeout: 120
+    CodeUri: quizEndpoint/dist/
+    Environment:
+      Variables:
+        OPENAI_API_KEY: !Sub "{{resolve:secretsmanager:quizBackendSecrets:SecretString:OPENAI_API_KEY}}"
+        DB_HOST: "quizapp-db.cb8qmiki8aqv.eu-central-1.rds.amazonaws.com"
+        DB_PASSWORD: !Sub "{{resolve:secretsmanager:quizBackendSecrets:SecretString:DB_PASSWORD}}"
+
+Resources:
+  QuizUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: QuizUserPool
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+  QuizUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: quizapp-auth  # MUST BE UNIQUE ACROSS AWS REGION
+      UserPoolId: !Ref QuizUserPool
+  QuizUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: QuizUserPoolClient
+      UserPoolId: !Ref QuizUserPool
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      CallbackURLs:
+        - https://your-frontend.com/callback  # Replace with your frontend
+      LogoutURLs:
+        - https://your-frontend.com/logout    # Replace with your frontend
+      SupportedIdentityProviders:
+        - COGNITO
+  FunFacts:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.funFact
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /funfact
+            Method: get
+  Explain:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.explain
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /explain
+            Method: get
+  SolveQuiz:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.solve
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /solve
+            Method: post
+  Emoji:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.emoji
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /emoji
+            Method: get
+  Quiz:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.quiz
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /quiz
+            Method: get
+  QuizApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors: "'*'"
+      Auth:
+        DefaultAuthorizer: QuizCognitoAuth
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          QuizCognitoAuth:
+            UserPoolArn: !GetAtt QuizUserPool.Arn
+
+Outputs:
+  ApiUrl:
+    Description: "Base API Gateway URL"
+    Value: !Sub "https://${QuizApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  UserPoolId:
+    Description: "QuizApp User Pool ID"
+    Value: !Ref QuizUserPool
+  UserPoolClientId:
+    Description: "QuizApp User Pool Client ID"
+    Value: !Ref QuizUserPoolClient
+  CognitoHostedUILogin:
+    Description: "Cognito Hosted UI Login URL"
+    Value: !Sub >
+      https://${QuizUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?response_type=code&client_id=${QuizUserPoolClient}&redirect_uri=https://example.com/callback

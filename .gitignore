@@ -1,0 +1,3 @@
+quizEndpoint/dist/*
+quizEndpoint/node_modules/
+.aws-sam/*

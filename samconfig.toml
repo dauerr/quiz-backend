@@ -1,0 +1,9 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "quizAppBackend"
+resolve_s3 = true
+s3_prefix = "quizAppBackend"
+region = "eu-central-1"
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
