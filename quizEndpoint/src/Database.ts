@@ -192,16 +192,104 @@ export class Database {
         await this.query(sql, values);
     }
 
-    async like(userId: number, questionId: number): Promise<void> { }
+    async like(userId: number, questionId: number): Promise<void> {
+        const checkLikeSql = `
+            SELECT 1 FROM \`user_likes\`
+            WHERE \`user_id\` = ? AND \`quiz_id\` = ?;
+        `;
+        const existingLike = await this.query<any[]>(checkLikeSql, [userId, questionId]);
 
-    async getLikes(questionId: number): Promise<void> { }
+        if (existingLike.length > 0) {
+            return Promise.reject('User liked already');
+        }
+
+        const sql = `
+        UPDATE quizzes
+        SET likes = likes + 1
+        WHERE id = ${questionId};
+        `;
+        await this.query(sql);
+
+        const sql2 = `
+        INSERT INTO \`user_likes\` (\`user_id\`, \`quiz_id\`) VALUES (?, ?);
+        `;
+        const values = [
+            userId,
+            questionId
+        ];
+        await this.query(sql2, values);
+        
+        const sql3 = `
+        DELETE FROM \`user_dislikes\`
+        WHERE \`user_id\` = ? AND \`quiz_id\` = ?;
+        `;
+        await this.query(sql3, values);
+        
+        const sql4 = `
+        UPDATE quizzes
+        SET dislikes = dislikes - 1
+        WHERE id = ? AND dislikes > 0;
+        `;
+        await this.query(sql4, [questionId]);
+    }
+
+    async getLikes(questionId: number): Promise<number> {
+        const sql = `
+            SELECT likes FROM quizzes WHERE id = ${questionId};
+        `;
+
+        const result = await this.query<any[]>(sql);
+
+        if (result.length > 0) {
+        return result[0].likes; 
+        } else {
+            return Promise.reject(`Couldn't get likes`);
+        }
+    }
 
     async getLikesForUser(userId: number): Promise<Question[]> {
         return [];
     }
 
-    async dislike(userId: number, questionId: number): Promise<number> {
-        return 0;
+    async dislike(userId: number, questionId: number): Promise<void> {
+        const checkDislikeSql = `
+            SELECT 1 FROM \`user_likes\`
+            WHERE \`user_id\` = ? AND \`quiz_id\` = ?;
+        `;
+        const existingLike = await this.query<any[]>(checkDislikeSql, [userId, questionId]);
+
+        if (existingLike.length > 0) {
+            return Promise.reject('User disliked already');
+        }
+
+        const sql = `
+        UPDATE quizzes
+        SET dislikes = dislikes + 1
+        WHERE id = ${questionId};
+        `;
+        await this.query(sql);
+
+        const sql2 = `
+        INSERT INTO \`user_dislikes\` (\`user_id\`, \`quiz_id\`) VALUES (?, ?);
+        `;
+        const values = [
+            userId,
+            questionId
+        ];
+        await this.query(sql2, values);
+        
+        const sql3 = `
+        DELETE FROM \`user_likes\`
+        WHERE \`user_id\` = ? AND \`quiz_id\` = ?;
+        `;
+        await this.query(sql3, values);
+        
+        const sql4 = `
+        UPDATE quizzes
+        SET likes = likes - 1
+        WHERE id = ? AND likes > 0;
+        `;
+        await this.query(sql4, [questionId]);
     }
 
     async getDislikesForUser(userId: number): Promise<Question[]> {
@@ -209,7 +297,17 @@ export class Database {
     }
 
     async getDislikes(questionId: number): Promise<number> {
-        return 0;
+        const sql = `
+            SELECT dislikes FROM quizzes WHERE id = ${questionId};
+        `;
+
+        const result = await this.query<any[]>(sql);
+
+        if (result.length > 0) {
+        return result[0].likes; 
+        } else {
+            return Promise.reject(`Couldn't get dislikes`);
+        }
     }
 
     async getUserById(id: number): Promise<User> {

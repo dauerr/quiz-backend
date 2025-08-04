@@ -82,6 +82,50 @@ Resources:
             RestApiId: !Ref QuizApi  
             Path: /solve
             Method: post
+  Like:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.like
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /like
+            Method: post
+  GetLikes:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.getLikes
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /getLikes
+            Method: get
+  Dislike:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.dislike
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /dislike
+            Method: post
+  GetDislikes:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.getDislikes
+      Events:
+        Quiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref QuizApi  
+            Path: /getDislikes
+            Method: get
   Emoji:
     Type: AWS::Serverless::Function
     Properties:
